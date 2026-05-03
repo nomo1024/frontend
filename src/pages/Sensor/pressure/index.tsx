@@ -12,15 +12,31 @@ const PressureSensorPage: React.FC = () => {
 
   const fetchStatus = async () => {
     try {
-      console.log('气压: 获取传感器状态...');
       const res = await getSensorStatus(4);
-      console.log('气压: 状态响应', res);
-      const running = res?.running ?? res?.data?.running ?? false;
-      console.log('气压: 设置运行状态为', running);
+      console.log('气压 状态响应:', res);
+      let running = false;
+      if (typeof res === 'boolean') running = res;
+      else if (typeof res === 'string') running = res === '运行中' || res === 'running';
+      else if (res) {
+        if (res.source_4) running = res.source_4 === '运行中';
+        else if (res.running !== undefined) running = res.running === true;
+        else if (res.data) running = parseStatus(res.data, 4);
+      }
       setIsRunning(running);
     } catch (error) {
-      console.error('气压: 获取状态失败', error);
+      console.error('气压 获取状态失败', error);
     }
+  };
+
+  const parseStatus = (data: any, source: number): boolean => {
+    if (typeof data === 'boolean') return data;
+    if (typeof data === 'string') return data === '运行中' || data === 'running';
+    if (data) {
+      const key = `source_${source}`;
+      if (data[key]) return data[key] === '运行中';
+      if (data.running !== undefined) return data.running === true;
+    }
+    return false;
   };
 
   const fetchInitialData = async () => {
@@ -64,8 +80,7 @@ const PressureSensorPage: React.FC = () => {
     try {
       await startSensor(4);
       message.success('气压监测已启动');
-      // 重新获取状态确认
-      await fetchStatus();
+      setIsRunning(true);
     } catch (error) {
       message.error('启动失败');
     } finally {
@@ -78,8 +93,7 @@ const PressureSensorPage: React.FC = () => {
     try {
       await stopSensor(4);
       message.success('气压监测已停止');
-      // 重新获取状态确认
-      await fetchStatus();
+      setIsRunning(false);
     } catch (error) {
       message.error('停止失败');
     } finally {
@@ -90,15 +104,13 @@ const PressureSensorPage: React.FC = () => {
   useEffect(() => {
     fetchStatus();
     fetchInitialData();
-    // 定时刷新状态，确保与后端同步
-    const statusTimer = setInterval(fetchStatus, 5000);
-    return () => clearInterval(statusTimer);
+    const statusInterval = setInterval(fetchStatus, 3000);
+    return () => clearInterval(statusInterval);
   }, []);
 
   useEffect(() => {
     stopPolling();
     if (isRunning) {
-      // 先立即获取一次数据
       fetchData();
       timerRef.current = setInterval(fetchData, 2000);
     }
@@ -114,7 +126,7 @@ const PressureSensorPage: React.FC = () => {
 
   const chartOption = chartData.length > 0 ? {
     title: {
-      text: '气压监测',
+      text: '',
       left: 'center',
     },
     tooltip: {
@@ -160,7 +172,7 @@ const PressureSensorPage: React.FC = () => {
 
   return (
     <Card
-      title="气压监测"
+      title={<div style={{ textAlign: 'center', width: '100%' }}>气压监测</div>}
       extra={
         <Button
           type={isRunning ? 'danger' : 'primary'}

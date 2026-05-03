@@ -28,6 +28,7 @@ export default [
     icon: 'user',
     path: '/admin/user-manage',
     component: './Admin/UserManage',
+    access: 'canAdmin',
   },
   {
     name: 'GPS监测',

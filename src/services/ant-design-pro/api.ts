@@ -42,10 +42,23 @@ export async function register(body: API.RegisterParams, options?: { [key: strin
   });
 }
 
-/** 搜索用户 GET /api/user/search */
-export async function searchUsers(options?: { [key: string]: any }) {
+/** 搜索用户 POST /api/user/search */
+export async function searchUsers(body?: API.UserQueryRequest, options?: { [key: string]: any }) {
+  const cleanBody: any = {};
+  if (body) {
+    Object.keys(body).forEach(key => {
+      const val = (body as any)[key];
+      if (val !== undefined && val !== null && val !== '') {
+        cleanBody[key] = val;
+      }
+    });
+  }
   return request<API.BaseResponse<API.CurrentUser[]>>('/api/user/search', {
-    method: 'GET',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: cleanBody,
     ...(options || {}),
   });
 }

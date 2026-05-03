@@ -12,15 +12,31 @@ const TemperatureSensorPage: React.FC = () => {
 
   const fetchStatus = async () => {
     try {
-      console.log('温度: 获取传感器状态...');
       const res = await getSensorStatus(5);
-      console.log('温度: 状态响应', res);
-      const running = res?.running ?? res?.data?.running ?? false;
-      console.log('温度: 设置运行状态为', running);
+      console.log('温度 状态响应:', res);
+      let running = false;
+      if (typeof res === 'boolean') running = res;
+      else if (typeof res === 'string') running = res === '运行中' || res === 'running';
+      else if (res) {
+        if (res.source_5) running = res.source_5 === '运行中';
+        else if (res.running !== undefined) running = res.running === true;
+        else if (res.data) running = parseStatus(res.data, 5);
+      }
       setIsRunning(running);
     } catch (error) {
-      console.error('温度: 获取状态失败', error);
+      console.error('温度 获取状态失败', error);
     }
+  };
+
+  const parseStatus = (data: any, source: number): boolean => {
+    if (typeof data === 'boolean') return data;
+    if (typeof data === 'string') return data === '运行中' || data === 'running';
+    if (data) {
+      const key = `source_${source}`;
+      if (data[key]) return data[key] === '运行中';
+      if (data.running !== undefined) return data.running === true;
+    }
+    return false;
   };
 
   const fetchInitialData = async () => {
@@ -64,8 +80,7 @@ const TemperatureSensorPage: React.FC = () => {
     try {
       await startSensor(5);
       message.success('温度监测已启动');
-      // 重新获取状态确认
-      await fetchStatus();
+      setIsRunning(true);
     } catch (error) {
       message.error('启动失败');
     } finally {
@@ -78,8 +93,7 @@ const TemperatureSensorPage: React.FC = () => {
     try {
       await stopSensor(5);
       message.success('温度监测已停止');
-      // 重新获取状态确认
-      await fetchStatus();
+      setIsRunning(false);
     } catch (error) {
       message.error('停止失败');
     } finally {
@@ -90,15 +104,13 @@ const TemperatureSensorPage: React.FC = () => {
   useEffect(() => {
     fetchStatus();
     fetchInitialData();
-    // 定时刷新状态，确保与后端同步
-    const statusTimer = setInterval(fetchStatus, 5000);
-    return () => clearInterval(statusTimer);
+    const statusInterval = setInterval(fetchStatus, 3000);
+    return () => clearInterval(statusInterval);
   }, []);
 
   useEffect(() => {
     stopPolling();
     if (isRunning) {
-      // 先立即获取一次数据
       fetchData();
       timerRef.current = setInterval(fetchData, 2000);
     }
@@ -114,7 +126,7 @@ const TemperatureSensorPage: React.FC = () => {
 
   const chartOption = chartData.length > 0 ? {
     title: {
-      text: '温度监测',
+      text: '',
       left: 'center',
     },
     tooltip: {
@@ -165,7 +177,7 @@ const TemperatureSensorPage: React.FC = () => {
 
   return (
     <Card
-      title="温度监测"
+      title={<div style={{ textAlign: 'center', width: '100%' }}>温度监测</div>}
       extra={
         <Button
           type={isRunning ? 'danger' : 'primary'}

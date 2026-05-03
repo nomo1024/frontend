@@ -13,16 +13,30 @@ const GpsSensorPage: React.FC = () => {
 
   const fetchStatus = async () => {
     try {
-      console.log('GPS: 获取传感器状态...');
       const res = await getSensorStatus(1);
-      console.log('GPS: 状态响应', res);
-      // 兼容多种返回格式
-      const running = res?.running ?? res?.data?.running ?? false;
-      console.log('GPS: 设置运行状态为', running);
+      console.log('GPS 状态响应:', res);
+      let running = false;
+      if (typeof res === 'boolean') running = res;
+      else if (typeof res === 'string') running = res === '运行中' || res === 'running';
+      else if (res) {
+        if (res.source_1) running = res.source_1 === '运行中';
+        else if (res.running !== undefined) running = res.running === true;
+        else if (res.data) running = fetchStatusFromRes(res.data);
+      }
       setIsRunning(running);
     } catch (error: any) {
-      console.error('GPS: 获取状态失败', error);
+      console.error('获取状态失败', error);
     }
+  };
+
+  const fetchStatusFromRes = (data: any): boolean => {
+    if (typeof data === 'boolean') return data;
+    if (typeof data === 'string') return data === '运行中' || data === 'running';
+    if (data) {
+      if (data.source_1) return data.source_1 === '运行中';
+      if (data.running !== undefined) return data.running === true;
+    }
+    return false;
   };
 
   const fetchInitialData = async () => {
@@ -89,8 +103,7 @@ const GpsSensorPage: React.FC = () => {
     try {
       await startSensor(1);
       message.success('GPS监测已启动');
-      // 重新获取状态确认
-      await fetchStatus();
+      setIsRunning(true);
     } catch (error: any) {
       message.error('启动失败');
       setError(error.message);
@@ -104,8 +117,7 @@ const GpsSensorPage: React.FC = () => {
     try {
       await stopSensor(1);
       message.success('GPS监测已停止');
-      // 重新获取状态确认
-      await fetchStatus();
+      setIsRunning(false);
     } catch (error: any) {
       message.error('停止失败');
       setError(error.message);
@@ -117,15 +129,14 @@ const GpsSensorPage: React.FC = () => {
   useEffect(() => {
     fetchStatus();
     fetchInitialData();
-    // 定时刷新状态，确保与后端同步
-    const statusTimer = setInterval(fetchStatus, 5000);
-    return () => clearInterval(statusTimer);
+    // 每3秒同步一次状态，确保跳转页面后状态正确
+    const statusInterval = setInterval(fetchStatus, 3000);
+    return () => clearInterval(statusInterval);
   }, []);
 
   useEffect(() => {
     stopPolling();
     if (isRunning) {
-      // 先立即获取一次数据
       fetchData();
       timerRef.current = setInterval(fetchData, 2000);
     }
@@ -141,7 +152,7 @@ const GpsSensorPage: React.FC = () => {
 
   const chartOption = chartData.length > 0 ? {
     title: {
-      text: 'GPS数据监测',
+      text: '',
       left: 'center',
     },
     tooltip: {
@@ -197,7 +208,7 @@ const GpsSensorPage: React.FC = () => {
 
   return (
     <Card
-      title="GPS监测"
+      title={<div style={{ textAlign: 'center', width: '100%' }}>GPS监测</div>}
       extra={
         <Button
           type={isRunning ? 'danger' : 'primary'}

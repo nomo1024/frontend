@@ -76,6 +76,17 @@ declare namespace API {
     type?: string;
   };
 
+  type UserQueryRequest = {
+    id?: number;
+    userAccount?: string;
+    phone?: string;
+    email?: string;
+    userRole?: number;
+    userStatus?: string;
+    createTimeFrom?: Date;
+    createTimeTo?: Date;
+  };
+
   type ErrorResponse = {
     /** 业务约定的错误码 */
     errorCode: string;
