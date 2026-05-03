@@ -36,12 +36,14 @@ export async function getInitialState(): Promise<{
 }> {
   const fetchUserInfo = async () => {
     try {
-      return await queryCurrentUser();
+      const msg = await queryCurrentUser();
+      return msg;
     } catch (error) {
-      history.push(loginPath);
+      // 拦截器已处理 401 跳转，此处不重复处理
     }
     return undefined;
   };
+
   // 如果是无需登录的页面，不执行
   if (NO_NEED_LOGIN_WHITE_LIST.includes(history.location.pathname)) {
     return {
@@ -50,10 +52,15 @@ export async function getInitialState(): Promise<{
       settings: defaultSettings,
     };
   }
+
+  // 尝试获取用户信息
+  const currentUser = await fetchUserInfo();
+
   return {
     // @ts-ignore
     fetchUserInfo,
     settings: defaultSettings,
+    currentUser,
   };
 
 }
@@ -71,8 +78,8 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       if (NO_NEED_LOGIN_WHITE_LIST.includes(location.pathname)) {
         return;
       }
-      // 如果没有登录，重定向到 login
-      if (!initialState?.currentUser) {
+      // 只有确实没有用户信息（未登录）时才跳转
+      if (!initialState?.currentUser && !initialState?.loading) {
         history.push(loginPath);
       }
     },

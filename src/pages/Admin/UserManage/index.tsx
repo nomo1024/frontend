@@ -1,18 +1,20 @@
-import React, {useEffect, useRef, useState} from 'react';
-import type {ActionType, ProColumns} from '@ant-design/pro-table';
+import React, { useEffect, useRef, useState } from 'react';
+import type { ActionType, ProColumns } from '@ant-design/pro-table';
 import ProTable, { ProFormInstance } from '@ant-design/pro-table';
-import {Button, Dropdown, Menu, message, Space} from 'antd';
-import {deleteUser, searchUsers, updateUser} from "@/services/ant-design-pro/api";
-import {ArrowDownOutlined, ArrowUpOutlined, DownOutlined} from '@ant-design/icons';
+import { Button, Dropdown, Menu, message, Space } from 'antd';
+import { deleteUser, searchUsers, updateUser } from '@/services/ant-design-pro/api';
+import { ArrowDownOutlined, ArrowUpOutlined, DownOutlined } from '@ant-design/icons';
 
 export default () => {
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
+
   const [sortField, setSortField] = useState<'id' | 'userAccount' | 'createTime'>('id');
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend'>('ascend');
-  const [searchId, setSearchId] = useState<string>('');
 
-  const isIdSearching = !!searchId;
+  // 响应式监听 ID 搜索框的值，用于动态禁用其他输入框
+  const [idSearchValue, setIdSearchValue] = useState<string>('');
+  const isIdSearching = !!idSearchValue; // 只要有内容就禁用其他框
 
   const columns: ProColumns<API.CurrentUser>[] = [
     {
@@ -21,7 +23,13 @@ export default () => {
       editable: false,
       search: {
         fieldProps: {
-          onChange: (e: any) => setSearchId(e.target.value),
+          type: 'number',
+          min: 1,
+          precision: 0,
+          onChange: (e) => {
+            // 同步 ID 输入框的值到状态
+            setIdSearchValue(e.target.value || '');
+          },
         },
       },
     },
@@ -30,9 +38,9 @@ export default () => {
       dataIndex: 'userAccount',
       copyable: true,
       search: {
-        fieldProps: {
+        fieldProps: () => ({
           disabled: isIdSearching,
-        },
+        }),
       },
     },
     {
@@ -40,9 +48,9 @@ export default () => {
       dataIndex: 'phone',
       copyable: true,
       search: {
-        fieldProps: {
+        fieldProps: () => ({
           disabled: isIdSearching,
-        },
+        }),
       },
     },
     {
@@ -50,18 +58,25 @@ export default () => {
       dataIndex: 'email',
       copyable: true,
       search: {
-        fieldProps: {
+        fieldProps: () => ({
           disabled: isIdSearching,
-        },
+        }),
       },
     },
     {
       title: '状态',
       dataIndex: 'userStatus',
+      valueType: 'select',
+      valueEnum: {
+        0: { text: '离线', status: 'Default' },
+        1: { text: '在线', status: 'Success' },
+        2: { text: '隐身', status: 'Warning' },
+        3: { text: '忙碌', status: 'Error' },
+      },
       search: {
-        fieldProps: {
+        fieldProps: () => ({
           disabled: isIdSearching,
-        },
+        }),
       },
     },
     {
@@ -69,13 +84,13 @@ export default () => {
       dataIndex: 'userRole',
       valueType: 'select',
       valueEnum: {
-        0: {text: '普通用户', status: 'Default'},
-        1: {text: '管理员', status: 'Success'},
+        0: { text: '普通用户', status: 'Default' },
+        1: { text: '管理员', status: 'Success' },
       },
       search: {
-        fieldProps: {
+        fieldProps: () => ({
           disabled: isIdSearching,
-        },
+        }),
       },
     },
     {
@@ -83,37 +98,28 @@ export default () => {
       dataIndex: 'createTime',
       valueType: 'dateTime',
       search: {
-        fieldProps: {
+        valueType: 'dateRange',
+        fieldProps: () => ({
           disabled: isIdSearching,
-        },
+          placeholder: ['开始时间', '结束时间'],
+        }),
       },
     },
     {
       title: '操作',
       valueType: 'option',
       render: (text, record, _, action) => [
-        <a
-          key="editable"
-          onClick={() => {
-            action?.startEditable?.(record.id);
-          }}
-        >
-          编辑
-        </a>,
-        <a
-          key="delete"
-          onClick={async () => {
-          await deleteUser({id: record.id});
+        <a key="editable" onClick={() => action?.startEditable?.(record.id)}>编辑</a>,
+        <a key="delete" onClick={async () => {
+          await deleteUser({ id: record.id });
           message.success('删除成功');
-          action?.reload();
-          }}
-        >
-          删除
-        </a>,
+          actionRef.current?.reload();
+        }}>删除</a>,
       ],
     },
   ];
 
+  // 排序字段或顺序变化时刷新表格
   useEffect(() => {
     actionRef.current?.reload();
   }, [sortField, sortOrder]);
@@ -123,152 +129,86 @@ export default () => {
       columns={columns}
       actionRef={actionRef}
       cardBordered
-      request={async (params = {}, sort, filter) => {
+      request={async (params = {}) => {
         const queryRequest: API.UserQueryRequest = {};
-        if (params.id && String(params.id).trim()) queryRequest.id = Number(params.id);
-        if (params.userAccount && String(params.userAccount).trim()) queryRequest.userAccount = params.userAccount;
-        if (params.phone && String(params.phone).trim()) queryRequest.phone = params.phone;
-        if (params.email && String(params.email).trim()) queryRequest.email = params.email;
+
+        // ID 参数校验
+        if (params.id !== undefined && params.id !== null && String(params.id).trim() !== '') {
+          const idStr = String(params.id).trim();
+          if (!/^[1-9]\d*$/.test(idStr)) {
+            message.warning('请输入 ≥ 1 的整数 ID');
+            return { data: [], total: 0 };
+          }
+          queryRequest.id = Number(idStr);
+        }
+
+        // 其他参数（当ID有值时，这些参数不会被加入查询，但为了严谨仍然判断）
+        if (params.userAccount?.trim()) queryRequest.userAccount = params.userAccount;
+        if (params.phone?.trim()) queryRequest.phone = params.phone;
+        if (params.email?.trim()) queryRequest.email = params.email;
         if (params.userRole !== undefined && params.userRole !== '') queryRequest.userRole = Number(params.userRole);
-        if (params.userStatus !== undefined && params.userStatus !== '') queryRequest.userStatus = params.userStatus;
+        if (params.userStatus !== undefined && params.userStatus !== '') queryRequest.userStatus = Number(params.userStatus);
         if (params.createTime && Array.isArray(params.createTime) && params.createTime.length === 2) {
           queryRequest.createTimeFrom = params.createTime[0];
           queryRequest.createTimeTo = params.createTime[1];
         }
-        console.log('发送请求:', JSON.stringify(queryRequest));
+
         const userList = await searchUsers(queryRequest);
         const list = userList || [];
-        const hasSearchParams = Object.keys(queryRequest).length > 0;
-        if (hasSearchParams && list.length > 0) {
-          message.success('查询成功');
-        }
-        const sortedList = list.sort((a, b) => {
-          const fieldA = a[sortField];
-          const fieldB = b[sortField];
-          if (sortOrder === 'ascend') {
-            return fieldA > fieldB ? 1 : -1;
-          } else {
-            return fieldA < fieldB ? 1 : -1;
-          }
+        const hasSearch = Object.keys(queryRequest).length > 0;
+        if (hasSearch && list.length >= 0) message.success(`查询到 ${list.length} 条数据`);
+
+        // 前端排序（根据选择的字段和顺序）
+        const sorted = [...list].sort((a, b) => {
+          const fa = a[sortField];
+          const fb = b[sortField];
+          return sortOrder === 'ascend' ? (fa > fb ? 1 : -1) : (fa < fb ? 1 : -1);
         });
-        return {
-          data: sortedList,
-          total: sortedList.length,
-        }
+
+        return { data: sorted, total: sorted.length };
       }}
-      options={{
-        density: false,
-        reload: true,
-        setting: true,
-      }}
+      options={{ density: false, reload: true, setting: true }}
       toolBarRender={() => [
-        <Space key="sortControls">
-          <Dropdown
-            trigger={['hover']}
-            overlay={
-              <Menu
-                onClick={(e) => {
-                  setSortField(e.key as any);
-                }}
-              >
-                <Menu.Item key="id" style={{
-                  backgroundColor: sortField === 'id' ? '#1890ff' : 'transparent',
-                  color: sortField === 'id' ? '#fff' : 'inherit'
-                }}>按ID</Menu.Item>
-                <Menu.Item key="userAccount" style={{
-                  backgroundColor: sortField === 'userAccount' ? '#1890ff' : 'transparent',
-                  color: sortField === 'userAccount' ? '#fff' : 'inherit'
-                }}>按账户</Menu.Item>
-                <Menu.Item key="createTime" style={{
-                  backgroundColor: sortField === 'createTime' ? '#1890ff' : 'transparent',
-                  color: sortField === 'createTime' ? '#fff' : 'inherit'
-                }}>按创建时间</Menu.Item>
-              </Menu>
-            }
-            mouseEnterDelay={0.3}
-            mouseLeaveDelay={0.1}
-          >
-            <Button type="primary">
-              排序方式 <DownOutlined/>
-            </Button>
+        <Space key="sort">
+          <Dropdown trigger={['hover']} overlay={
+            <Menu onClick={(e) => setSortField(e.key as any)}>
+              <Menu.Item key="id" style={{ backgroundColor: sortField === 'id' ? '#1890ff' : '', color: sortField === 'id' ? '#fff' : '' }}>按ID</Menu.Item>
+              <Menu.Item key="userAccount" style={{ backgroundColor: sortField === 'userAccount' ? '#1890ff' : '', color: sortField === 'userAccount' ? '#fff' : '' }}>按账户</Menu.Item>
+              <Menu.Item key="createTime" style={{ backgroundColor: sortField === 'createTime' ? '#1890ff' : '', color: sortField === 'createTime' ? '#fff' : '' }}>按创建时间</Menu.Item>
+            </Menu>
+          }>
+            <Button type="primary">排序方式 <DownOutlined /></Button>
           </Dropdown>
-          <Button
-            onClick={() => setSortOrder(sortOrder === 'ascend' ? 'descend' : 'ascend')}
-            style={{
-              padding: '4px 8px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <ArrowUpOutlined
-              style={{
-                fontSize: 14,
-                color: sortOrder === 'ascend' ? '#1890ff' : 'black',
-                transform: 'translateX(-3px)',
-                lineHeight: 1,
-                marginBottom: -2,
-              }}
-            />
-            <ArrowDownOutlined
-              style={{
-                fontSize: 14,
-                color: sortOrder === 'descend' ? '#1890ff' : 'black',
-                transform: 'translateX(3px)',
-                lineHeight: 1,
-                marginTop: -2,
-              }}
-            />
+          <Button onClick={() => setSortOrder(sortOrder === 'ascend' ? 'descend' : 'ascend')} style={{ padding: '4px 8px', flexDirection: 'column' }}>
+            <ArrowUpOutlined style={{ color: sortOrder === 'ascend' ? '#1890ff' : '#000' }} />
+            <ArrowDownOutlined style={{ color: sortOrder === 'descend' ? '#1890ff' : '#000' }} />
           </Button>
         </Space>,
       ]}
       editable={{
         type: 'multiple',
         onSave: async (rowKey, data) => {
-          const { id, createTime, ...editableFields } = data;
-          const hasChanges = Object.keys(editableFields).some(key =>
-            editableFields[key] !== undefined && editableFields[key] !== ''
-          );
-          if (!hasChanges) {
-            message.info('未修改任何内容');
-            return;
-          }
+          const { id, createTime, ...rest } = data;
+          const hasChange = Object.values(rest).some(v => v !== undefined && v !== '');
+          if (!hasChange) { message.info('未修改内容'); return; }
           await updateUser(data);
           message.success('更新成功');
           actionRef.current?.reload();
         },
-        actionRender: (record, config, defaultDoms) => {
-          return [defaultDoms.save, defaultDoms.cancel];
-        },
+        actionRender: (r, c, doms) => [doms.save, doms.cancel],
       }}
-      columnsState={{
-        persistenceKey: 'pro-table-singe-demos',
-        persistenceType: 'localStorage',
-      }}
+      columnsState={{ persistenceKey: 'user-manager-table', persistenceType: 'localStorage' }}
       rowKey="id"
-      search={{
-        labelWidth: 'auto',
-      }}
+      search={{ labelWidth: 'auto', syncToUrl: false }}
       form={{
-        syncToUrl: (values, type) => {
-          if (type === 'post') {
-            return {
-              ...values,
-              created_at: [values.startTime, values.endTime],
-            };
-          }
-          return values;
-        },
-        onValuesChange: (changedValues: any, allValues: any) => {
-          if ('id' in changedValues) {
-            setSearchId(changedValues.id || '');
-          }
+        formRef: formRef,
+        syncToUrl: (v) => v,
+        onReset: () => {
+          setIdSearchValue('');
+          formRef.current?.setFieldsValue({ id: undefined });
         },
       }}
-      pagination={{
-        pageSize: 5,
-      }}
+      pagination={false}
       dateFormatter="string"
       headerTitle="用户管理"
     />

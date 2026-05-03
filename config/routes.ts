@@ -61,6 +61,12 @@ export default [
     component: './Sensor/temperature',
   },
   {
+    name: '个人中心',
+    path: '/account/center',
+    component: './Center',
+    hideInMenu: true,
+  },
+  {
     component: './404',
   },
 

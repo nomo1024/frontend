@@ -52,10 +52,11 @@ request.interceptors.response.use(async (response, options): Promise<any> => {
         redirect: location.pathname,
       }),
     });
-  } else {
-    message.error(res.description || res.msg)
+    throw new Error('请先登录');
   }
-  return res.data || res.msg;
+  const errorMsg = res.description || res.msg || '请求失败';
+  message.error(errorMsg);
+  throw new Error(errorMsg);
 });
 
 export default request;

@@ -52,9 +52,14 @@ const Login: React.FC = () => {
           redirect: string;
         };
 
-        if (redirect) {
+        // 检查 redirect 路径是否与用户角色匹配
+        const isAdminPath = redirect?.startsWith('/admin');
+        const isAdminUser = user.userRole === 1;
+
+        // 普通用户尝试访问管理员页面时跳转到其默认首页
+        if (redirect && (!isAdminPath || isAdminUser)) {
           history.push(redirect);
-        } else if (user.userRole === 1) {
+        } else if (isAdminUser) {
           history.push('/admin/user-manage');
         } else {
           history.push('/sensor/gps');
