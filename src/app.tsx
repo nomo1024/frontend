@@ -78,6 +78,11 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       if (NO_NEED_LOGIN_WHITE_LIST.includes(location.pathname)) {
         return;
       }
+      // 访问根路径且已登录，跳转到个人中心
+      if (location.pathname === '/' && initialState?.currentUser) {
+        history.push('/account/center');
+        return;
+      }
       // 只有确实没有用户信息（未登录）时才跳转
       if (!initialState?.currentUser && !initialState?.loading) {
         history.push(loginPath);

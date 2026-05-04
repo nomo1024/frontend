@@ -96,12 +96,30 @@ export default () => {
     {
       title: '创建时间',
       dataIndex: 'createTime',
+      render: (val) => val ? new Date(val as string).toLocaleString() : '-',
+      hideInSearch: true,
+    },
+    {
+      title: '开始时间',
+      dataIndex: 'createTimeFrom',
       valueType: 'dateTime',
+      hideInTable: true,
       search: {
-        valueType: 'dateRange',
         fieldProps: () => ({
           disabled: isIdSearching,
-          placeholder: ['开始时间', '结束时间'],
+          placeholder: '开始时间',
+        }),
+      },
+    },
+    {
+      title: '结束时间',
+      dataIndex: 'createTimeTo',
+      valueType: 'dateTime',
+      hideInTable: true,
+      search: {
+        fieldProps: () => ({
+          disabled: isIdSearching,
+          placeholder: '结束时间',
         }),
       },
     },
@@ -148,10 +166,8 @@ export default () => {
         if (params.email?.trim()) queryRequest.email = params.email;
         if (params.userRole !== undefined && params.userRole !== '') queryRequest.userRole = Number(params.userRole);
         if (params.userStatus !== undefined && params.userStatus !== '') queryRequest.userStatus = Number(params.userStatus);
-        if (params.createTime && Array.isArray(params.createTime) && params.createTime.length === 2) {
-          queryRequest.createTimeFrom = params.createTime[0];
-          queryRequest.createTimeTo = params.createTime[1];
-        }
+        if (params.createTimeFrom) queryRequest.createTimeFrom = params.createTimeFrom;
+        if (params.createTimeTo) queryRequest.createTimeTo = params.createTimeTo;
 
         const userList = await searchUsers(queryRequest);
         const list = userList || [];

@@ -45,6 +45,7 @@ declare namespace API {
    * 通用返回类
    */
   type BaseResponse<T> = {
+    length: any;
     code: number,
     data: T,
     message: string,
