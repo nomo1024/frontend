@@ -1,57 +1,71 @@
-# 用户中心前端
+# 环境监测系统
 
-This project is initialized with [鱼皮用户中心](https://pro.ant.design). Follow is the quick guide for how to use.
+基于 Vue 3 + Element Plus + Vite 构建的环境监测系统前端项目。
 
-## Environment Prepare
+## 技术栈
 
-Install `node_modules`:
+- **Vue 3** - 渐进式 JavaScript 框架
+- **TypeScript** - 类型安全的 JavaScript 超集
+- **Vite** - 下一代前端构建工具
+- **Element Plus** - 基于 Vue 3 的组件库
+- **Pinia** - Vue 状态管理库
+- **Vue Router** - Vue 官方路由
+- **Axios** - HTTP 客户端
+- **ECharts** - 数据可视化图表库
+
+## 快速开始
+
+### 安装依赖
 
 ```bash
 npm install
 ```
 
-or
+### 启动开发服务器
 
 ```bash
-yarn
+npm run dev
 ```
 
-## Provided Scripts
-
-鱼皮用户中心 provides some useful script to help you quick start and build with web project, code style check and test.
-
-Scripts provided in `package.json`. It's safe to modify or add additional script:
-
-### Start project
-
-```bash
-npm start
-```
-
-### Build project
+### 构建生产版本
 
 ```bash
 npm run build
 ```
 
-### Check code style
+### 预览生产构建
 
 ```bash
-npm run lint
+npm run preview
 ```
 
-You can also use script to auto fix some lint error:
+## 项目结构
 
-```bash
-npm run lint:fix
+```
+src/
+├── api/              # API 接口
+├── assets/           # 静态资源
+├── components/       # 公共组件
+├── composables/      # 组合式函数
+├── layout/           # 布局组件
+├── router/           # 路由配置
+├── stores/           # Pinia 状态管理
+├── types/            # TypeScript 类型定义
+├── utils/            # 工具函数
+└── views/            # 页面组件
+    ├── user/         # 登录/注册
+    ├── admin/        # 管理页面
+    ├── sensor/       # 传感器监测
+    └── center/       # 个人中心
 ```
 
-### Test code
+## 功能模块
 
-```bash
-npm test
-```
-
-## More
-
-You can view full document on our [official website](https://pro.ant.design). And welcome any feedback in our [github](https://github.com/ant-design/ant-design-pro).
+- 用户登录/注册
+- 用户管理（管理员）
+- GPS监测
+- 湿度监测
+- 光照监测
+- 气压监测
+- 温度监测
+- 个人中心
