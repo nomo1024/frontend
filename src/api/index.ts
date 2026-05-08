@@ -43,7 +43,7 @@ export function updateUser(body: Partial<CurrentUser>): Promise<BaseResponse<num
 }
 
 export function deleteUser(id: number): Promise<BaseResponse<boolean>> {
-  return request.post('/api/user/delete', id)
+  return request.post('/api/user/delete', { id })
 }
 
 export function startSensor(source?: number) {
@@ -64,8 +64,9 @@ export function getSensorStatus(source?: number) {
   })
 }
 
-export function readSensorData(source?: number, limit = 100) {
-  return request.get('/api/sensor/read', {
-    params: { ...(source ? { source } : {}), limit },
-  })
+export function readSensorData(source?: number, limit = 100, startTime?: string, endTime?: string) {
+  const params: Record<string, any> = { ...(source ? { source } : {}), limit }
+  if (startTime) params.startTime = startTime
+  if (endTime) params.endTime = endTime
+  return request.get('/api/sensor/read', { params })
 }

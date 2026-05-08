@@ -1,111 +1,19 @@
 <template>
-  <el-card class="sensor-card">
-    <template #header>
-      <div class="card-header">
-        <h3>湿度监测</h3>
-        <el-button :type="isRunning ? 'danger' : 'primary'" @click="isRunning ? handleStop() : handleStart()" :loading="loading">
-          <el-icon><VideoPause v-if="isRunning" /><VideoPlay v-else /></el-icon>
-          {{ isRunning ? '停止监测' : '开始监测' }}
-        </el-button>
-      </div>
-    </template>
-
-    <div v-if="chartData.length === 0" class="no-data">暂无数据</div>
-    <div ref="chartRef" class="chart" v-else></div>
-  </el-card>
+  <SensorMonitor
+    :source="2"
+    name="湿度"
+    unit="%RH"
+    chart-type="bar"
+    :y-axis-min="0"
+    :y-axis-max="100"
+    :y-axis-interval="10"
+    line-color="#3098d6"
+    :bar-item-style="{ color: '#3098d6', borderRadius: [4, 4, 0, 0] }"
+    :alert-min="20"
+    :alert-max="80"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { VideoPlay, VideoPause } from '@element-plus/icons-vue'
-import { useSensor } from '@/composables/useSensor'
-import * as echarts from 'echarts'
-
-const { isRunning, loading, chartData, handleStart, handleStop } = useSensor(2, '湿度')
-
-const chartRef = ref<HTMLElement>()
-let chart: echarts.ECharts | null = null
-
-const renderChart = () => {
-  if (!chartRef.value || chartData.value.length === 0) return
-  if (!chart) {
-    chart = echarts.init(chartRef.value)
-  }
-
-  chart.setOption({
-    tooltip: { trigger: 'axis' },
-    animation: true,
-    animationDuration: 600,
-    animationEasing: 'cubicOut',
-    xAxis: {
-      type: 'category',
-      data: chartData.value.map((d) => d.time),
-      name: '时间',
-    },
-    yAxis: {
-      type: 'value',
-      name: '湿度 (%RH)',
-      min: 0,
-      max: 100,
-      interval: 10,
-    },
-    series: [
-      {
-        data: chartData.value.map((d) => d.value),
-        type: 'bar',
-        itemStyle: {
-          color: '#3098d6',
-          borderRadius: [4, 4, 0, 0],
-        },
-      },
-    ],
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-  })
-}
-
-watch(chartData, () => renderChart(), { deep: true })
-
-onMounted(() => {
-  if (chartData.value.length > 0) {
-    setTimeout(() => renderChart(), 100)
-  }
-})
-
-onUnmounted(() => {
-  chart?.dispose()
-})
+import SensorMonitor from '@/components/SensorMonitor.vue'
 </script>
-
-<style scoped lang="less">
-.sensor-card {
-  :deep(.el-card__header) {
-    padding: 16px 24px;
-  }
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-  }
-}
-
-.no-data {
-  height: 70vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #999;
-  font-size: 16px;
-}
-
-.chart {
-  height: 70vh;
-  width: 100%;
-}
-</style>

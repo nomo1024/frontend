@@ -46,7 +46,11 @@
             <el-input v-model="editForm.userAccount" :disabled="!editMode" />
           </el-form-item>
           <el-form-item label="密码">
-            <el-input v-model="editForm.userPassword" type="password" :disabled="!editMode" show-password placeholder="输入新密码（不修改请留空）" />
+            <el-input v-model="editForm.userPassword" type="password" :disabled="!editMode" show-password placeholder="输入新密码（不修改请留空）" @input="updatePwdStrength" />
+            <div class="pwd-strength" v-if="editMode && editForm.userPassword">
+              <div class="strength-bar" :class="pwdStrengthClass"></div>
+              <span class="strength-text" :style="{ color: pwdStrengthColor }">{{ pwdStrengthText }}</span>
+            </div>
           </el-form-item>
           <el-form-item label="手机号">
             <el-input v-model="editForm.phone" :disabled="!editMode" />
@@ -102,6 +106,31 @@ const statusValue = computed({
 })
 
 const editMode = ref(false)
+const pwdStrength = ref(0)
+const updatePwdStrength = (val: string) => {
+  let score = 0
+  if (val.length >= 8) score++
+  if (/[a-z]/.test(val) && /[A-Z]/.test(val)) score++
+  if (/\d/.test(val)) score++
+  if (/[^a-zA-Z0-9]/.test(val)) score++
+  pwdStrength.value = score
+}
+const pwdStrengthClass = computed(() => {
+  if (pwdStrength.value <= 1) return 'weak'
+  if (pwdStrength.value === 2) return 'medium'
+  return 'strong'
+})
+const pwdStrengthText = computed(() => {
+  if (pwdStrength.value <= 1) return '弱'
+  if (pwdStrength.value === 2) return '中'
+  return '强'
+})
+const pwdStrengthColor = computed(() => {
+  if (pwdStrength.value <= 1) return '#f5222d'
+  if (pwdStrength.value === 2) return '#faad14'
+  return '#52c41a'
+})
+
 const editForm = reactive({
   userAccount: '',
   userPassword: '',
@@ -200,6 +229,40 @@ if (userStore.currentUser) {
       margin-top: 16px;
       font-size: 22px;
       font-weight: 600;
+    }
+  }
+
+  .pwd-strength {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+
+    .strength-bar {
+      width: 80px;
+      height: 6px;
+      border-radius: 3px;
+      background: #f0f0f0;
+      transition: all 0.3s;
+      position: relative;
+
+      &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        border-radius: 3px;
+        transition: all 0.3s;
+      }
+
+      &.weak::after { width: 33%; background: #f5222d; }
+      &.medium::after { width: 66%; background: #faad14; }
+      &.strong::after { width: 100%; background: #52c41a; }
+    }
+
+    .strength-text {
+      font-size: 12px;
     }
   }
 }

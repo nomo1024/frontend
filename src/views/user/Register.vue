@@ -62,7 +62,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 const router = useRouter()
 const route = useRoute()
 
-const logoUrl = 'http://mms0.baidu.com/it/u=604189734,1143451865&fm=253&app=138&f=JPEG?w=250&h=250'
+const logoUrl = '/pro_icon.svg'
 const activeTab = ref('account')
 const loading = ref(false)
 const formRef = ref<FormInstance>()

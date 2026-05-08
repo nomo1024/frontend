@@ -39,7 +39,7 @@
           <el-input v-model="searchForm.email" placeholder="邮件" :disabled="isIdSearching" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="searchForm.userStatus" placeholder="状态" :disabled="isIdSearching" clearable>
+          <el-select v-model="searchForm.userStatus" :disabled="isIdSearching" clearable style="width:140px">
             <el-option label="离线" :value="0" />
             <el-option label="在线" :value="1" />
             <el-option label="隐身" :value="2" />
@@ -47,7 +47,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="角色">
-          <el-select v-model="searchForm.userRole" placeholder="角色" :disabled="isIdSearching" clearable>
+          <el-select v-model="searchForm.userRole" :disabled="isIdSearching" clearable style="width:160px">
             <el-option label="普通用户" :value="0" />
             <el-option label="管理员" :value="1" />
           </el-select>
@@ -55,10 +55,14 @@
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button @click="handleReset">重置</el-button>
+          <el-button type="danger" :disabled="selectedIds.length === 0" @click="handleBatchDelete">
+            批量删除 ({{ selectedIds.length }})
+          </el-button>
         </el-form-item>
       </el-form>
 
-      <el-table :data="tableData" border stripe style="width: 100%" v-loading="loading">
+      <el-table :data="tableData" border stripe style="width: 100%" v-loading="loading" @selection-change="onSelectionChange">
+        <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="userAccount" label="用户账户" show-overflow-tooltip />
         <el-table-column prop="phone" label="电话" />
@@ -106,6 +110,20 @@
         <el-form-item label="邮箱">
           <el-input v-model="editForm.email" />
         </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="editForm.userStatus" style="width:100%">
+            <el-option label="离线" :value="0" />
+            <el-option label="在线" :value="1" />
+            <el-option label="隐身" :value="2" />
+            <el-option label="忙碌" :value="3" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="角色">
+          <el-select v-model="editForm.userRole" style="width:100%">
+            <el-option label="普通用户" :value="0" />
+            <el-option label="管理员" :value="1" />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="editDialogVisible = false">取消</el-button>
@@ -136,8 +154,13 @@ const tableData = ref<CurrentUser[]>([])
 const loading = ref(false)
 const sortField = ref<'id' | 'userAccount' | 'createTime'>('id')
 const sortOrder = ref<'ascend' | 'descend'>('ascend')
+const selectedIds = ref<number[]>([])
+
+const onSelectionChange = (rows: CurrentUser[]) => {
+  selectedIds.value = rows.map(r => r.id!).filter(Boolean)
+}
 const editDialogVisible = ref(false)
-const editForm = reactive<Partial<CurrentUser>>({})
+const editForm = reactive<Partial<CurrentUser>>({ userStatus: 0, userRole: 0 })
 
 const isIdSearching = computed(() => !!searchForm.id)
 
@@ -195,8 +218,15 @@ const fetchData = async () => {
       queryRequest.userStatus = Number(searchForm.userStatus)
     }
 
-    const res = await searchUsers(queryRequest)
+    const res: any = await searchUsers(queryRequest)
     let list = Array.isArray(res) ? res : []
+
+    // normalize numeric fields so el-select binds match (server may return strings)
+    list = list.map((item: any) => ({
+      ...item,
+      userStatus: item.userStatus !== undefined && item.userStatus !== null ? Number(item.userStatus) : item.userStatus,
+      userRole: item.userRole !== undefined && item.userRole !== null ? Number(item.userRole) : item.userRole,
+    }))
 
     const sorted = [...list].sort((a, b) => {
       let fa: any, fb: any
@@ -242,6 +272,8 @@ const openEditDialog = (row: CurrentUser) => {
   editForm.userAccount = row.userAccount
   editForm.phone = row.phone
   editForm.email = row.email
+  editForm.userStatus = row.userStatus !== undefined && row.userStatus !== null ? Number(row.userStatus) : row.userStatus
+  editForm.userRole = row.userRole !== undefined && row.userRole !== null ? Number(row.userRole) : row.userRole
   editDialogVisible.value = true
 }
 
@@ -260,6 +292,18 @@ const handleDelete = async (id: number) => {
   try {
     await deleteUser(id)
     ElMessage.success('删除成功')
+    fetchData()
+  } catch {
+    // error handled by interceptor
+  }
+}
+
+const handleBatchDelete = async () => {
+  if (selectedIds.value.length === 0) return
+  try {
+    await Promise.all(selectedIds.value.map(id => deleteUser(id)))
+    ElMessage.success(`成功删除 ${selectedIds.value.length} 个用户`)
+    selectedIds.value = []
     fetchData()
   } catch {
     // error handled by interceptor

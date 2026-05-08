@@ -16,14 +16,27 @@
           class="sidebar-menu"
         >
           <template v-for="route in menuRoutes" :key="route.path">
-            <el-menu-item :index="route.path" v-if="!route.meta?.hidden && !route.meta?.requiresAdmin">
-              <el-icon><component :is="route.meta?.icon || 'Document'" /></el-icon>
-              <template #title>{{ route.meta?.title }}</template>
-            </el-menu-item>
-            <el-menu-item :index="route.path" v-if="route.meta?.requiresAdmin && isAdmin">
-              <el-icon><component :is="route.meta?.icon || 'User'" /></el-icon>
-              <template #title>{{ route.meta?.title }}</template>
-            </el-menu-item>
+            <el-tooltip
+              :content="route.meta?.title as string"
+              placement="right"
+              :disabled="!isCollapsed"
+            >
+              <el-menu-item :index="route.path" v-if="!route.meta?.hidden && !route.meta?.requiresAdmin">
+                <el-icon><component :is="route.meta?.icon || 'Document'" /></el-icon>
+                <template #title>{{ route.meta?.title }}</template>
+              </el-menu-item>
+            </el-tooltip>
+            <el-tooltip
+              :content="route.meta?.title as string"
+              placement="right"
+              :disabled="!isCollapsed"
+              v-if="route.meta?.requiresAdmin && isAdmin"
+            >
+              <el-menu-item :index="route.path">
+                <el-icon><component :is="route.meta?.icon || 'User'" /></el-icon>
+                <template #title>{{ route.meta?.title }}</template>
+              </el-menu-item>
+            </el-tooltip>
           </template>
         </el-menu>
       </el-aside>
@@ -35,6 +48,12 @@
               <Fold v-if="!isCollapsed" />
               <Expand v-else />
             </el-icon>
+            <el-breadcrumb separator="/" class="breadcrumb">
+              <el-breadcrumb-item :to="{ path: '/sensor/dashboard' }">首页</el-breadcrumb-item>
+              <el-breadcrumb-item v-if="route.meta?.title" :to="route.path">
+                {{ route.meta?.title as string }}
+              </el-breadcrumb-item>
+            </el-breadcrumb>
           </div>
           <div class="header-right">
             <el-dropdown @command="handleCommand" trigger="click">
@@ -61,7 +80,11 @@
         </el-header>
 
         <el-main class="main-content">
-          <router-view />
+          <router-view v-slot="{ Component, route: r }">
+            <transition name="fade" mode="out-in">
+              <component :is="Component" :key="r.path" />
+            </transition>
+          </router-view>
         </el-main>
 
         <el-footer class="footer">
@@ -95,7 +118,7 @@ const route = useRoute()
 const userStore = useUserStore()
 const isCollapsed = ref(false)
 
-const logoUrl = 'http://mms0.baidu.com/it/u=604189734,1143451865&fm=253&app=138&f=JPEG?w=250&h=250'
+const logoUrl = '/pro_icon.svg'
 
 const isAdmin = computed(() => userStore.currentUser?.userRole === 1)
 
@@ -191,6 +214,10 @@ const handleCommand = async (command: string) => {
   height: 56px;
 
   .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
     .collapse-btn {
       font-size: 20px;
       cursor: pointer;
@@ -222,6 +249,16 @@ const handleCommand = async (command: string) => {
   background: #f0f2f5;
   padding: 24px;
   overflow-y: auto;
+}
+
+// Page transition
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 .footer {
