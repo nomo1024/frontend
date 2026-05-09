@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 import router from '@/router'
 
 const request = axios.create({
-  baseURL: import.meta.env.MODE === 'production' ? 'http://192.168.23.128:8080' : 'http://localhost:8080',
+  baseURL: import.meta.env.MODE === 'production' ? '' : 'http://localhost:8080',
   timeout: 100000,
   withCredentials: true,
 })

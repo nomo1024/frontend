@@ -87,6 +87,7 @@ import { useRouter } from 'vue-router'
 import { ElNotification } from 'element-plus'
 import { Location, Sunny, Drizzling, WindPower, HotWater, Download } from '@element-plus/icons-vue'
 import { useSensor } from '@/composables/useSensor'
+import { useGpsTracker } from '@/composables/useGpsTracker'
 import * as echarts from 'echarts'
 
 declare global {
@@ -149,10 +150,9 @@ const sensorItems = computed(() => [
   },
 ])
 
+const { isRunning: gpsRunning, currentCoords, start: startGpsWatch, stop: stopGpsWatch } = useGpsTracker()
 const gpsLoading = ref(false)
-const gpsRunning = ref(false)
 const gpsCoords = ref<{ lng: number; lat: number }>({ ...BEIJING_COORDS })
-let gpsWatchId: number | null = null
 let mapInstance: any = null
 let markerInstance: any = null
 
@@ -257,57 +257,18 @@ const updatePosition = (lng: number, lat: number) => {
 const initGpsMap = async () => {
   try {
     await loadAMapScript(AMAP_KEY)
-    createMap(BEIJING_COORDS.lng, BEIJING_COORDS.lat)
-    tryGeolocation()
+    if (currentCoords.value) {
+      createMap(currentCoords.value.lng, currentCoords.value.lat)
+    } else {
+      createMap(BEIJING_COORDS.lng, BEIJING_COORDS.lat)
+      navigator.geolocation.getCurrentPosition(
+        (pos) => updatePosition(pos.coords.longitude, pos.coords.latitude),
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    }
   } catch {
     // AMap load failed
-  }
-}
-
-const tryGeolocation = () => {
-  if (!navigator.geolocation) return
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const { longitude: lng, latitude: lat } = pos.coords
-      updatePosition(lng, lat)
-    },
-    () => {},
-    { enableHighAccuracy: true, timeout: 10000 }
-  )
-}
-
-const startGpsWatch = () => {
-  if (!navigator.geolocation) return
-  gpsLoading.value = true
-  gpsRunning.value = true
-
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const { longitude: lng, latitude: lat } = pos.coords
-      updatePosition(lng, lat)
-      gpsLoading.value = false
-    },
-    () => {
-      gpsLoading.value = false
-    },
-    { enableHighAccuracy: true, timeout: 10000 }
-  )
-
-  gpsWatchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      const { longitude: lng, latitude: lat } = pos.coords
-      updatePosition(lng, lat)
-    },
-    () => {},
-    { enableHighAccuracy: true }
-  )
-}
-
-const stopGpsWatch = () => {
-  gpsRunning.value = false
-  if (gpsWatchId !== null) {
-    navigator.geolocation.clearWatch(gpsWatchId)
-    gpsWatchId = null
   }
 }
 
@@ -315,9 +276,17 @@ const toggleGps = () => {
   if (gpsRunning.value) {
     stopGpsWatch()
   } else {
+    gpsLoading.value = true
     startGpsWatch()
   }
 }
+
+watch(currentCoords, (coords) => {
+  if (coords) {
+    if (gpsLoading.value) gpsLoading.value = false
+    updatePosition(coords.lng, coords.lat)
+  }
+})
 
 const renderSparklines = () => {
   sensorItems.value.forEach((s) => {
@@ -374,7 +343,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   chartInstances.value.forEach(c => c.dispose())
-  stopGpsWatch()
   if (mapInstance) {
     mapInstance.destroy()
     mapInstance = null
@@ -566,7 +534,7 @@ onUnmounted(() => {
 
   .gps-content {
     .mini-map {
-      height: 300px;
+      height: 420px;
       width: 100%;
     }
 

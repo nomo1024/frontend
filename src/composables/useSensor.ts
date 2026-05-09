@@ -12,13 +12,37 @@ export interface UseSensorOptions {
   timeRange?: '5min' | '30min' | '1hour'
 }
 
+function getSysSetting<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem('system_settings')
+    return raw ? (JSON.parse(raw)[key] ?? fallback) : fallback
+  } catch { return fallback }
+}
+
 export function useSensor(source: number, sensorName: string, options?: UseSensorOptions) {
   const isRunning = ref(false)
   const loading = ref(false)
   const chartData = ref<SensorDataPoint[]>([])
   const timerRef = ref<number>()
 
-  const maxPoints = ref(options?.maxPoints ?? 5)
+  const storageKey = `sensor_maxPoints_${source}`
+
+  const loadMaxPoints = () => {
+    try {
+      const saved = localStorage.getItem(storageKey)
+      if (saved !== null) return parseInt(saved, 10)
+    } catch { /* ignore */ }
+    return null
+  }
+
+  const saveMaxPoints = (v: number) => {
+    try { localStorage.setItem(storageKey, String(v)) } catch { /* ignore */ }
+  }
+
+  const pollingInterval = ref(getSysSetting('pollingInterval', 2))
+  const statusInterval = ref(getSysSetting('statusInterval', 3))
+  const sysDefault = getSysSetting('defaultMaxPoints', 0)
+  const maxPoints = ref(loadMaxPoints() || sysDefault || options?.maxPoints || 40)
   const timeRange = ref<'5min' | '30min' | '1hour'>(options?.timeRange ?? '5min')
 
   const getFetchLimit = () => {
@@ -151,7 +175,7 @@ export function useSensor(source: number, sensorName: string, options?: UseSenso
   const startPolling = () => {
     stopPolling()
     fetchData()
-    timerRef.value = window.setInterval(fetchData, 2000)
+    timerRef.value = window.setInterval(fetchData, pollingInterval.value * 1000)
   }
 
   watch(isRunning, (running) => {
@@ -162,7 +186,8 @@ export function useSensor(source: number, sensorName: string, options?: UseSenso
     }
   })
 
-  watch(maxPoints, () => {
+  watch(maxPoints, (v) => {
+    saveMaxPoints(v)
     chartData.value = chartData.value.slice(-maxPoints.value)
   })
 
@@ -183,10 +208,10 @@ export function useSensor(source: number, sensorName: string, options?: UseSenso
   onMounted(() => {
     fetchStatus()
     fetchInitialData()
-    const statusInterval = setInterval(fetchStatus, 3000)
+    const statusTimer = setInterval(fetchStatus, statusInterval.value * 1000)
     document.addEventListener('visibilitychange', handleVisibility)
     onUnmounted(() => {
-      clearInterval(statusInterval)
+      clearInterval(statusTimer)
       stopPolling()
       document.removeEventListener('visibilitychange', handleVisibility)
     })

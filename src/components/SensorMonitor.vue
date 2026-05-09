@@ -399,17 +399,26 @@ const toggleFullscreen = () => {
 
 const alertStore = useAlertStore()
 
+function alertEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem('system_settings')
+    return raw ? (JSON.parse(raw).alertNotification ?? true) : true
+  } catch { return true }
+}
+
 watch(hasAlert, (val) => {
   if (val && !prevAlert.value) {
     const threshold = props.alertMin !== undefined && currentValue.value! < props.alertMin
       ? `低于下限 ${props.alertMin}${props.unit}`
       : `超出上限 ${props.alertMax}${props.unit}`
-    ElNotification({
-      title: `${props.name} 告警`,
-      message: `当前值 ${formatNum(currentValue.value)}${props.unit} ${threshold}`,
-      type: 'warning',
-      duration: 5000,
-    })
+    if (alertEnabled()) {
+      ElNotification({
+        title: `${props.name} 告警`,
+        message: `当前值 ${formatNum(currentValue.value)}${props.unit} ${threshold}`,
+        type: 'warning',
+        duration: 5000,
+      })
+    }
     alertStore.pushAlert({
       sensorName: props.name,
       sensorSource: props.source,

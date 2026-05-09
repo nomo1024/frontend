@@ -20,10 +20,10 @@
 
         <el-form-item label="默认显示条数">
           <el-select v-model="settings.defaultMaxPoints" style="width: 120px">
-            <el-option label="10条" :value="10" />
-            <el-option label="20条" :value="20" />
             <el-option label="30条" :value="30" />
             <el-option label="40条" :value="40" />
+            <el-option label="50条" :value="50" />
+            <el-option label="60条" :value="60" />
           </el-select>
         </el-form-item>
 
@@ -32,16 +32,6 @@
         <el-form-item label="告警通知">
           <el-switch v-model="settings.alertNotification" />
           <span class="form-hint">关闭后仅显示页面徽章，不弹窗通知</span>
-        </el-form-item>
-
-        <el-form-item label="告警音效">
-          <el-switch v-model="settings.alertSound" />
-        </el-form-item>
-
-        <el-divider content-position="left">显示</el-divider>
-
-        <el-form-item label="图表平滑动画">
-          <el-switch v-model="settings.chartAnimation" />
         </el-form-item>
 
         <el-form-item>
@@ -64,8 +54,6 @@ const defaults = {
   statusInterval: 3,
   defaultMaxPoints: 40,
   alertNotification: true,
-  alertSound: false,
-  chartAnimation: true,
 }
 
 const settings = reactive({ ...defaults })

@@ -1,5 +1,8 @@
 import { ref } from 'vue'
 
+const STORAGE_KEY = 'sensor_alerts'
+const MAX_ALERTS = 200
+
 export interface AlertEvent {
   id: number
   sensorName: string
@@ -11,19 +14,39 @@ export interface AlertEvent {
   type: 'min' | 'max'
 }
 
-const alerts = ref<AlertEvent[]>([])
-let nextId = 1
+function loadAlerts(): AlertEvent[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveAlerts(data: AlertEvent[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  } catch {
+    // storage full or unavailable
+  }
+}
+
+const alerts = ref<AlertEvent[]>(loadAlerts())
+let nextId = alerts.value.reduce((max, a) => Math.max(max, a.id), 0) + 1
 
 export function useAlertStore() {
   const pushAlert = (event: Omit<AlertEvent, 'id'>) => {
-    alerts.value.unshift({ id: nextId++, ...event })
-    if (alerts.value.length > 200) {
-      alerts.value = alerts.value.slice(0, 200)
+    const entry: AlertEvent = { id: nextId++, ...event }
+    alerts.value.unshift(entry)
+    if (alerts.value.length > MAX_ALERTS) {
+      alerts.value = alerts.value.slice(0, MAX_ALERTS)
     }
+    saveAlerts(alerts.value)
   }
 
   const clearAlerts = () => {
     alerts.value = []
+    saveAlerts(alerts.value)
   }
 
   return {

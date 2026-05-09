@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { VideoPlay, VideoPause } from '@element-plus/icons-vue'
+import { useGpsTracker } from '@/composables/useGpsTracker'
 
 declare global {
   interface Window {
@@ -9,11 +10,11 @@ declare global {
 }
 
 const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || 'bdde1002ca2302262381a5f51ca68d9b'
-const isRunning = ref(false)
+const { isRunning, currentCoords, start, stop } = useGpsTracker()
 const loading = ref(false)
 let mapInstance: any = null
 let geolocationInstance: any = null
-let watchId: number | null = null
+let markerInstance: any = null
 
 function loadAMapScript(key: string) {
   return new Promise<void>((resolve, reject) => {
@@ -36,6 +37,31 @@ function loadAMapScript(key: string) {
   })
 }
 
+function updateMarker(lng: number, lat: number) {
+  const AMap = (window as any).AMap
+  if (!AMap) return
+  if (markerInstance) {
+    markerInstance.setPosition([lng, lat])
+  } else {
+    markerInstance = new AMap.Marker({
+      position: [lng, lat],
+      map: mapInstance,
+    })
+  }
+}
+
+function doGeolocation() {
+  if (!geolocationInstance) return
+  geolocationInstance.getCurrentPosition(function (status: string, result: any) {
+    if (status === 'complete') {
+      const lng = result.position.lng
+      const lat = result.position.lat
+      updateMarker(lng, lat)
+      mapInstance.setCenter([lng, lat])
+    }
+  })
+}
+
 async function initMap() {
   try {
     await loadAMapScript(AMAP_KEY)
@@ -50,68 +76,52 @@ async function initMap() {
       resizeEnable: true,
     })
 
-    AMap.plugin('AMap.Geolocation', function () {
-      geolocationInstance = new AMap.Geolocation({
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
-        showButton: false,
-        showCircle: false,
+    if (currentCoords.value) {
+      updateMarker(currentCoords.value.lng, currentCoords.value.lat)
+      mapInstance.setCenter([currentCoords.value.lng, currentCoords.value.lat])
+    } else {
+      AMap.plugin('AMap.Geolocation', function () {
+        geolocationInstance = new AMap.Geolocation({
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000,
+          showButton: false,
+          showCircle: false,
+        })
+        mapInstance.addControl(geolocationInstance)
+        doGeolocation()
       })
-      mapInstance.addControl(geolocationInstance)
-    })
+    }
   } catch (e) {
     console.error('初始化地图失败:', e)
   }
 }
 
 function handleStart() {
-  if (!geolocationInstance) return
   loading.value = true
-  isRunning.value = true
-
-  geolocationInstance.getCurrentPosition(function (status: string, result: any) {
-    if (status === 'complete') {
-      const lng = result.position.lng
-      const lat = result.position.lat
-      new AMap.Marker({
-        position: [lng, lat],
-        map: mapInstance,
-      })
-      mapInstance.setCenter([lng, lat])
-      console.log('定位成功:', result)
-    } else {
-      console.warn('定位失败:', result)
-    }
-    loading.value = false
-  })
-
-  if (geolocationInstance.watchPosition) {
-    watchId = geolocationInstance.watchPosition(function (status: string, result: any) {
-      if (status === 'complete') {
-        const lng = result.position.lng
-        const lat = result.position.lat
-        mapInstance.setCenter([lng, lat])
-      }
-    })
-  }
+  start()
 }
 
 function handleStop() {
-  isRunning.value = false
-  if (watchId !== null && geolocationInstance && typeof geolocationInstance.clearWatch === 'function') {
-    geolocationInstance.clearWatch(watchId)
-    watchId = null
-  }
+  loading.value = false
+  stop()
 }
+
+watch(currentCoords, (coords) => {
+  if (coords) {
+    if (loading.value) loading.value = false
+    updateMarker(coords.lng, coords.lat)
+    mapInstance?.setCenter([coords.lng, coords.lat])
+  }
+})
 
 onMounted(() => {
   initMap()
 })
 
 onUnmounted(() => {
-  handleStop()
   mapInstance = null
+  geolocationInstance = null
 })
 </script>
 
